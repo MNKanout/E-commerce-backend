@@ -3,3 +3,4 @@ mac_venv/
 .vscode/
 tester.py
 customer.py
+shellTester.json

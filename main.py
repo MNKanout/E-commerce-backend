@@ -25,19 +25,19 @@ Customer Menu
 3.Personal detials
 4.Delete account
 
-(q) to exit (b) to go back"
+(b) to go back"
 '''
 
 cart_m = '''
 Cart Menu
 
-1.Search for a product
-2.Show all products
-3.Select a product
-4.Remove a product
-5.Show products in cart
+1.Add product to cart
+2.Remove product from cart
+3.Show products in cart
+4.Empty cart
+5.Show products in store
 
-(q) to exit (b) to go back"
+(b) to go back"
 '''
 
 
@@ -49,7 +49,7 @@ search_menu = '''\nPlease choose one of the following options:\n
 5.Search for a product
 6.Search for an order
 
-(q) to exit (b) to go back"
+(b) to go back"
 '''
 
 def get_customers(documents):
@@ -84,36 +84,50 @@ def main():
         else:
             print("You selected an invalid option, please select a valid option")
 
-def products_menu(customer_id):
+def customer_menu(customer_id):
+    customer = customers.find_one({"customer_id":customer_id})
+    while True:
+        print("\nYou are logged in as " + customer['first_name'].title()
+        ,customer['last_name'].title())
+        print(customer_m)
+
+        #User choice
+        choice = input()
+        if choice == "1":
+            cart_menu(customer_id)
+
+        #Go back to the customer menu
+        elif choice.lower() == "b":
+            break
+
+        # Invalid option
+        else:
+            print("You selected an invalid option, please select a valid option")
+
+
+def cart_menu(customer_id):
     while True:
         print(cart_m)
         choice = input()
+
+        #Add product to cart
         if choice == "1":
-            pass
+            product_id = input("Enter product number:\t")
+            customers.update_one({"customer_id":customer_id},
+            {
+               "$push":{"cart":{"product_id":int(product_id),"Quantity":1}}
+            })
 
-        #Show all products
+        #Remove product from cart
         elif choice == "2":
-            print("\nAvailable products:")
-            for product in products.find():
-                print(product["product_id"],product["product_name"])
+            product_id = input("Enter the product number:\t")
+            customers.update_one({"customer_id":customer_id},
+            {
+               "$pull":{"cart":{"product_id":int(product_id)}}
+            })
 
-        #Select a product
+        #Show products in cart
         elif choice == "3":
-            product_id = input("Enter the product number:\t")
-            customers.update_one({"customer_id":customer_id},
-            {
-               "$push":{"cart":{"product_id":product_id}
-            })
-
-        #Remove a product
-        elif choice == "4":
-            product_id = input("Enter the product number:\t")
-            customers.update_one({"customer_id":customer_id},
-            {
-               "$pull":{"cart":{"product_id":product_id}}
-            })
-
-        elif choice == "5":
             cart_items = customers.aggregate([
                 {
                     "$match":
@@ -130,18 +144,28 @@ def products_menu(customer_id):
                         "as": "products"
                     }
                 },
-                {"$project":{"_id":0,"products.product_name":1}},
+                {"$project":{"_id":0,"products.product_id":1,"products.product_name":1}},
             ])
 
             for item in cart_items:
-                print(item)
+                pprint.pprint(item)
+
+        # Empty cart
+        elif choice == "4":
+             customers.update_one({"customer_id":customer_id},
+            {
+               "$set":{"cart":[]}
+            })
+
+        #Show products in store    
+        elif choice == "5":
+            print("\nAvailable products:")
+
+            for product in products.find():
+                print(int(product["product_id"]),product["product_name"],int(product["units_in_stock"]))
             
         #Go back to the customer menu
         elif choice.lower() == "b":
-            customer_menu(customer_id)
-
-        #Quit the program
-        elif choice.lower() == "q":
             break
 
         # Invalid option
@@ -150,29 +174,7 @@ def products_menu(customer_id):
 
 
 
-def customer_menu(customer_id):
-    customer = customers.find_one({"customer_id":customer_id})
-    while True:
-        print("\nYou are logged in as " + customer['first_name'].title()
-        ,customer['last_name'].title())
-        print(customer_m)
 
-        #User choice
-        choice = input()
-        if choice == "1":
-            products_menu(customer_id)
-
-        #Go back to the customer menu
-        elif choice.lower() == "b":
-            main()
-
-        #Quit the program
-        elif choice.lower() == "q":
-            break
-
-        # Invalid option
-        else:
-            print("You selected an invalid option, please select a valid option")
         
 
 
