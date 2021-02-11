@@ -10,15 +10,34 @@ products = db["products"]
 orders = db["orders"]
 
 
-cust_menu = '''
-1.Add product to cart
-2.Remove product from cart
-2.Show products in cart
-3.Checkout
-4.Order history
-5.Delete account
+main_m = '''
+Welcome to the E-commerce demo app
 
-(b) to go main menu
+Main Menu
+Please log in as one of the following customers to continue:
+'''
+
+customer_m = '''
+Customer Menu
+
+1.Cart
+2.Orders
+3.Personal detials
+4.Delete account
+
+(q) to exit (b) to go back"
+'''
+
+cart_m = '''
+Cart Menu
+
+1.Search for a product
+2.Show all products
+3.Select a product
+4.Remove a product
+5.Show products in cart
+
+(q) to exit (b) to go back"
 '''
 
 
@@ -29,6 +48,8 @@ search_menu = '''\nPlease choose one of the following options:\n
 4.Search for a customer
 5.Search for a product
 6.Search for an order
+
+(q) to exit (b) to go back"
 '''
 
 def get_customers(documents):
@@ -39,9 +60,8 @@ def get_customers(documents):
 
 #Interface
 def main():
-    print("Welcome to the E-commerce demo app")
     while True:
-        print("\nMain Menu\nPlease log in as one of the following customers to continue:")
+        print(main_m)
         get_customers(customers)
         print("\n(q) to exit")
         choice = input()
@@ -65,39 +85,94 @@ def main():
             print("You selected an invalid option, please select a valid option")
 
 def products_menu(customer_id):
-    print("Products Menu")
     while True:
-        print("\n1.Search for a product\n2.Show all products\n3.Select a product\n4.")
+        print(cart_m)
         choice = input()
         if choice == "1":
             pass
+
+        #Show all products
         elif choice == "2":
+            print("\nAvailable products:")
             for product in products.find():
                 print(product["product_id"],product["product_name"])
+
+        #Select a product
         elif choice == "3":
             product_id = input("Enter the product number:\t")
             customers.update_one({"customer_id":customer_id},
             {
-               "$push":{"cart":{"product_id":product_id}}
+               "$push":{"cart":{"product_id":product_id}
             })
+
+        #Remove a product
+        elif choice == "4":
+            product_id = input("Enter the product number:\t")
+            customers.update_one({"customer_id":customer_id},
+            {
+               "$pull":{"cart":{"product_id":product_id}}
+            })
+
+        elif choice == "5":
+            cart_items = customers.aggregate([
+                {
+                    "$match":
+                    {
+                        "customer_id":customer_id
+                    }
+                },
+                {
+                    "$lookup":
+                    {
+                        "from":"products",
+                        "localField":"cart.product_id",
+                        "foreignField":"product_id",
+                        "as": "products"
+                    }
+                },
+                {"$project":{"_id":0,"products.product_name":1}},
+            ])
+
+            for item in cart_items:
+                print(item)
+            
+        #Go back to the customer menu
+        elif choice.lower() == "b":
+            customer_menu(customer_id)
+
+        #Quit the program
+        elif choice.lower() == "q":
+            break
+
+        # Invalid option
+        else:
+            print("You selected an invalid option, please select a valid option")
 
 
 
 def customer_menu(customer_id):
-    print("Customer Menu")
     customer = customers.find_one({"customer_id":customer_id})
     while True:
         print("\nYou are logged in as " + customer['first_name'].title()
         ,customer['last_name'].title())
-        print(cust_menu)
-        choice_2 = input()
-        if choice_2 == "1":
+        print(customer_m)
+
+        #User choice
+        choice = input()
+        if choice == "1":
             products_menu(customer_id)
-        elif choice_2.lower() == "b":
-            customer_id = None
+
+        #Go back to the customer menu
+        elif choice.lower() == "b":
             main()
+
+        #Quit the program
+        elif choice.lower() == "q":
+            break
+
+        # Invalid option
         else:
-             print("You selected an invalid option, please select a valid option")
+            print("You selected an invalid option, please select a valid option")
         
 
 
