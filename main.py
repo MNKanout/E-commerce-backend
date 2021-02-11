@@ -54,7 +54,7 @@ search_menu = '''\nPlease choose one of the following options:\n
 
 def get_customers(documents):
     for document in documents.find():
-        print(str(document["customer_id"])+".", document["first_name"].title(),document["last_name"].title())
+        print(int(document["customer_id"]), document["first_name"].title(),document["last_name"].title())
 
 
 
@@ -91,10 +91,22 @@ def customer_menu(customer_id):
         ,customer['last_name'].title())
         print(customer_m)
 
-        #User choice
+        #Cart menu
         choice = input()
         if choice == "1":
             cart_menu(customer_id)
+
+        #Show Orders
+        elif choice == "2":
+            pass
+
+        elif choice == "3":
+            pprint.pprint(customers.find_one({"customer_id":customer_id}))
+
+        
+        elif choice == "4":
+            customers.find_one_and_delete({"customer_id":customer_id})
+            break
 
         #Go back to the customer menu
         elif choice.lower() == "b":
