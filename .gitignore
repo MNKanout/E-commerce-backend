@@ -1,2 +1,5 @@
 venv/
-mac_venv
+mac_venv/
+.vscode/
+tester.py
+customer.py
