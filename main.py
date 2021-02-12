@@ -1,6 +1,6 @@
 #Libraries to import
 from prettytable import PrettyTable
-import pprint
+from pprint import pprint
 from tabulate import tabulate
 from pymongo import MongoClient
 
@@ -35,8 +35,7 @@ Cart Menu
 1.Add product to cart
 2.Remove product from cart
 3.Show products in cart
-4.Empty cart
-5.Show products in store
+4.Show products in store
 
 (b) to go back"
 '''
@@ -92,24 +91,25 @@ def customer_menu(customer_id):
         ,customer['last_name'].title())
         print(customer_m)
 
-        #Cart menu
+        # Cart menu
         choice = input()
         if choice == "1":
             cart_menu(customer_id)
 
-        #Show Orders
+        # Show Orders
         elif choice == "2":
             pass
 
+        # Show personal details
         elif choice == "3":
-            pprint.pprint(customers.find_one({"customer_id":customer_id}))
+            pprint(customers.find_one({"customer_id":customer_id}))
 
-        
+        # Delete account
         elif choice == "4":
             customers.find_one_and_delete({"customer_id":customer_id})
             break
 
-        #Go back to the customer menu
+        # Back to the customer menu
         elif choice.lower() == "b":
             break
 
@@ -125,7 +125,7 @@ def cart_menu(customer_id):
 
         #Add product to cart
         if choice == "1":
-            product_id = input("Enter product number:\t")
+            product_id = input("Enter product id:\t")
             customers.update_one({"customer_id":customer_id},
             {
                "$push":{"cart":{"product_id":int(product_id),"quantity":1}}
@@ -140,7 +140,7 @@ def cart_menu(customer_id):
         #Remove product from cart
         elif choice == "2":
             
-            product_id = input("Enter the product number:\t")
+            product_id = input("Enter product id:\t")
             customers.update_one({"customer_id":customer_id},
             {
                "$pull":{"cart":{"product_id":int(product_id)}}
@@ -174,15 +174,17 @@ def cart_menu(customer_id):
                 {
                     "$group":
                     {
-                        "_id":{"Product id":"$cart.product_id","Product Name":"$products.product_name"},
+                        "_id":{"Product id":"$cart.product_id","Product Name":"$products.product_name","Unit Price":"$products.unit_price"},
                         "Quantity":{"$sum":1}
                     }   
                 },
                 {
                     "$project":
                             {
-                                "_id.Product id":1,
-                                "_id.Product Name":1,
+                                "_id":0,
+                                "Product id":"$_id.Product id",
+                                "Product Name":"$_id.Product Name",
+                                "Unit Price":"$_id.Unit Price",
                                 "Quantity":1
                             }
                 } 
@@ -191,14 +193,9 @@ def cart_menu(customer_id):
             print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
 
         # Empty cart
-        elif choice == "4":
-             customers.update_one({"customer_id":customer_id},
-            {
-               "$set":{"cart":[]}
-            })
 
         #Show products in store    
-        elif choice == "5":
+        elif choice == "4":
             print("\nAvailable products:")
             items = products.aggregate([
                 {
