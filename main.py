@@ -126,29 +126,49 @@ def cart_menu(customer_id):
         #Add product to cart
         if choice == "1":
             product_id = input("Enter product id:\t")
-            customers.update_one({"customer_id":customer_id},
-            {
-               "$push":{"cart":{"product_id":int(product_id),"quantity":1}}
-            }
-            )
 
-            products.update_one({"product_id":int(product_id)},
-            {
-                "$inc":{"units_in_stock":-1}
-            })
+            #Check stock
+            counter = products.count_documents({"product_id":int(product_id),"units_in_stock":{"$gt":0}})
+
+            if counter >= 1:
+                # Update stock
+                products.update_one({"product_id":int(product_id),"units_in_stock":{"$gt":0}},
+                {
+                    "$inc":{"units_in_stock":-1}
+                })
+
+                # Update cart
+                customers.update_one({"customer_id":customer_id},
+                {
+                "$push":{"cart":{"product_id":int(product_id),"quantity":1}}
+                }
+                )
+            else:
+                print("Sorry, this product is out of stock!")
 
         #Remove product from cart
         elif choice == "2":
-            
             product_id = input("Enter product id:\t")
-            customers.update_one({"customer_id":customer_id},
-            {
-               "$pull":{"cart":{"product_id":int(product_id)}}
-            })
-            products.update_one({"product_id":int(product_id)},
-            {
-                "$inc":{"units_in_stock":+1}
-            })
+
+            # Check product in cart
+            counter = customers.count_documents({"customer_id":int(customer_id),"cart.product_id":int(product_id)})
+
+            if counter >= 1:
+                
+                # Update Cart
+                customers.update_one({"customer_id":customer_id},
+                {
+                    "$pull":{"cart":{"product_id":int(product_id)}}
+                })
+
+                # Update Stock
+                products.update_one({"product_id":int(product_id)},
+                {
+                    "$inc":{"units_in_stock":+1}
+                })
+            
+            else:
+                print("You don't have this product in you cart!")
 
         #Show products in cart
         elif choice == "3":
@@ -205,7 +225,8 @@ def cart_menu(customer_id):
                         "product_id":1,
                         "product_name":1,
                         "units_in_stock":1,
-                        "unit_price":1
+                        "unit_price":1,
+                        "category":"$category.category_name"
                     }
                 }
             ])
