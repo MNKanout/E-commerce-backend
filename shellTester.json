@@ -1,0 +1,91 @@
+db.customers.aggregate([
+    {$match:{customer_id:1}},
+    {$unwind:"$cart"},
+    {$project:{"_id":0,"cart.product_id":1}}
+    ]);
+
+db.customers.aggregate([
+    {$match:{customer_id:1}},
+    {$unwind:"$cart"},
+    ]).pretty();
+
+db.customers.aggregate([
+    {$match:{customer_id:1}},
+    {$project:{"_id":0,"cart.product_id":1}},
+    ]).pretty();
+
+
+//Retrive products from cart with quantity
+db.customers.aggregate([
+    {
+        $match:{customer_id:1}
+    },
+    {
+        $unwind:"$cart"
+    },
+    {
+        $lookup:
+        {
+            from:"products",
+            localField:"cart.product_id",
+            foreignField:"product_id",
+            as: "products"
+        }
+    },
+    {
+        $unwind:"$products"
+    },
+    {
+        $group:
+        {
+            _id:{"Product id":"$cart.product_id","Product Name":"$products.product_name"},
+            "Quantity":{$sum:1}
+        }   
+    }, 
+    {
+        $project:
+                {
+                    "_id.Product id":1,
+                    "_id.Product Name":1,
+                    "Quantity":1
+                }
+    }
+]).pretty();
+
+
+
+{
+    $project:{
+        "_id":0,
+        "cart":1,
+        "products.product_id":1,
+        "products.product_name":1
+    }   
+},
+
+
+db.products.find({product_id:1,units_in_stock:{$gt:0}})
+
+
+ustomers.count_documents(
+)
+
+db.customers.find({customer_id:1,"cart.product_id":1})
+
+
+"cart.Quantity":{$gt:0}
+
+db.customers.find({customer_id:1,cart:{$size:{$gt:1}});
+
+
+
+
+// Ready for use. Check if an array is empty
+db.customers.aggregate([
+    {
+        $match: {customer_id:2},
+    },
+    {
+        $project: {notEmpty:{$anyElementTrue:["$cart"]}}
+    }
+    ]);
