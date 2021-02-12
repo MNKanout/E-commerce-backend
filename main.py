@@ -1,6 +1,7 @@
 #Libraries to import
-import time
+from prettytable import PrettyTable
 import pprint
+from tabulate import tabulate
 from pymongo import MongoClient
 
 host = MongoClient("localhost",27017)
@@ -40,7 +41,6 @@ Cart Menu
 (b) to go back"
 '''
 
-
 search_menu = '''\nPlease choose one of the following options:\n
 1.Show all customers
 2.Show all products
@@ -64,6 +64,7 @@ def main():
         print(main_m)
         get_customers(customers)
         print("\n(q) to exit")
+
         choice = input()
         if choice == "1":
             customer_id = 1
@@ -127,25 +128,36 @@ def cart_menu(customer_id):
             product_id = input("Enter product number:\t")
             customers.update_one({"customer_id":customer_id},
             {
-               "$push":{"cart":{"product_id":int(product_id),"Quantity":1}}
+               "$push":{"cart":{"product_id":int(product_id),"quantity":1}}
+            }
+            )
+
+            products.update_one({"product_id":int(product_id)},
+            {
+                "$inc":{"units_in_stock":-1}
             })
 
         #Remove product from cart
         elif choice == "2":
+            
             product_id = input("Enter the product number:\t")
             customers.update_one({"customer_id":customer_id},
             {
                "$pull":{"cart":{"product_id":int(product_id)}}
             })
+            products.update_one({"product_id":int(product_id)},
+            {
+                "$inc":{"units_in_stock":+1}
+            })
 
         #Show products in cart
         elif choice == "3":
-            cart_items = customers.aggregate([
+            cart_items = db.customers.aggregate([
                 {
-                    "$match":
-                    {
-                        "customer_id":customer_id
-                    }
+                    "$match":{"customer_id":customer_id}
+                },
+                {
+                    "$unwind":"$cart"
                 },
                 {
                     "$lookup":
@@ -156,11 +168,27 @@ def cart_menu(customer_id):
                         "as": "products"
                     }
                 },
-                {"$project":{"_id":0,"products.product_id":1,"products.product_name":1}},
+                {
+                    "$unwind":"$products"
+                },
+                {
+                    "$group":
+                    {
+                        "_id":{"Product id":"$cart.product_id","Product Name":"$products.product_name"},
+                        "Quantity":{"$sum":1}
+                    }   
+                },
+                {
+                    "$project":
+                            {
+                                "_id.Product id":1,
+                                "_id.Product Name":1,
+                                "Quantity":1
+                            }
+                } 
             ])
-
-            for item in cart_items:
-                pprint.pprint(item)
+            # print(tabulate(cart_items["Product Name"]))
+            print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
 
         # Empty cart
         elif choice == "4":
@@ -172,10 +200,20 @@ def cart_menu(customer_id):
         #Show products in store    
         elif choice == "5":
             print("\nAvailable products:")
+            items = products.aggregate([
+                {
+                    "$project":
+                    {
+                        "_id":0,
+                        "product_id":1,
+                        "product_name":1,
+                        "units_in_stock":1,
+                        "unit_price":1
+                    }
+                }
+            ])
+            print(tabulate(items,headers="keys",tablefmt="fancy_grid"))
 
-            for product in products.find():
-                print(int(product["product_id"]),product["product_name"],int(product["units_in_stock"]))
-            
         #Go back to the customer menu
         elif choice.lower() == "b":
             break
