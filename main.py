@@ -207,19 +207,32 @@ def cart_menu(customer_id):
                                 "Product Name":"$_id.Product Name",
                                 "Unit Price":"$_id.Unit Price",
                                 "Quantity":1,
-                                "total":{"$multiply":["$Quantity","$_id.Unit Price"]}
-                            }
-                },
-                {
-                    "$sort":
-                    {
-                        "Product id":1
-                    }
+                                "total":{"$multiply":["$Quantity","$_id.Unit Price"]}}
                 }
+
             ])
 
             print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
 
+        # Empty cart
+
+        #Show products in store    
+        elif choice == "4":
+            print("\nAvailable products:")
+            items = products.aggregate([
+                {
+                    "$project":
+                    {
+                        "_id":0,
+                        "product_id":1,
+                        "product_name":1,
+                        "units_in_stock":1,
+                        "unit_price":1,
+                        "category":"$category.category_name"
+                    }
+                }
+            ])
+            print(tabulate(items,headers="keys",tablefmt="fancy_grid"))
 
         #Checkout
         elif choice == "5":
@@ -257,20 +270,12 @@ def cart_menu(customer_id):
                                 "Product Name":"$_id.Product Name",
                                 "Unit Price":"$_id.Unit Price",
                                 "Quantity":1,
-                                "Total Price":{"$multiply":["$Quantity","$_id.Unit Price"]}
-                            }
-                } 
+                                "total":{"$multiply":["$Quantity","$_id.Unit Price"]}}
+                }
+
             ])
 
-            total_amount = 0
-            total_quantity = 0
-
-            for i in cart_items:
-                total_amount += i["Total Price"]
-                total_quantity += i["Quantity"]
-            
-            print(total_amount,total_quantity)
-
+            print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
 
 
         #Go back to the customer menu
