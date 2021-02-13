@@ -36,6 +36,7 @@ Cart Menu
 2.Remove product from cart
 3.Show products in cart
 4.Show products in store
+5.Checkout
 
 (b) to go back"
 '''
@@ -195,7 +196,7 @@ def cart_menu(customer_id):
                     "$group":
                     {
                         "_id":{"Product id":"$cart.product_id","Product Name":"$products.product_name","Unit Price":"$products.unit_price"},
-                        "Quantity":{"$sum":1}
+                        "Quantity":{"$sum":1},
                     }   
                 },
                 {
@@ -205,32 +206,64 @@ def cart_menu(customer_id):
                                 "Product id":"$_id.Product id",
                                 "Product Name":"$_id.Product Name",
                                 "Unit Price":"$_id.Unit Price",
-                                "Quantity":1
+                                "Quantity":1,
+                                "total":{"$multiply":["$Quantity","$_id.Unit Price"]}
                             }
-                } 
-            ])
-            # print(tabulate(cart_items["Product Name"]))
-            print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
-
-        # Empty cart
-
-        #Show products in store    
-        elif choice == "4":
-            print("\nAvailable products:")
-            items = products.aggregate([
+                },
                 {
-                    "$project":
+                    "$sort":
                     {
-                        "_id":0,
-                        "product_id":1,
-                        "product_name":1,
-                        "units_in_stock":1,
-                        "unit_price":1,
-                        "category":"$category.category_name"
+                        "Product id":1
                     }
                 }
             ])
-            print(tabulate(items,headers="keys",tablefmt="fancy_grid"))
+
+            print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
+
+
+        #Checkout
+        elif choice == "5":
+            cart_items = db.customers.aggregate([
+                {
+                    "$match":{"customer_id":customer_id}
+                },
+                {
+                    "$unwind":"$cart"
+                },
+                {
+                    "$lookup":
+                    {
+                        "from":"products",
+                        "localField":"cart.product_id",
+                        "foreignField":"product_id",
+                        "as": "products"
+                    }
+                },
+                {
+                    "$unwind":"$products"
+                },
+                {
+                    "$group":
+                    {
+                        "_id":{"Product id":"$cart.product_id","Product Name":"$products.product_name","Unit Price":"$products.unit_price"},
+                        "Quantity":{"$sum":1},
+                    }   
+                },
+                {
+                    "$project":
+                            {
+                                "_id":0,
+                                "Product id":"$_id.Product id",
+                                "Product Name":"$_id.Product Name",
+                                "Unit Price":"$_id.Unit Price",
+                                "Quantity":1,
+                                "total":{"$multiply":["$Quantity","$_id.Unit Price"]}
+                            }
+                } 
+            ])
+
+            print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
+
 
         #Go back to the customer menu
         elif choice.lower() == "b":
