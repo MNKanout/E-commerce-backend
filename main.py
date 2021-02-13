@@ -257,12 +257,20 @@ def cart_menu(customer_id):
                                 "Product Name":"$_id.Product Name",
                                 "Unit Price":"$_id.Unit Price",
                                 "Quantity":1,
-                                "total":{"$multiply":["$Quantity","$_id.Unit Price"]}
+                                "Total Price":{"$multiply":["$Quantity","$_id.Unit Price"]}
                             }
                 } 
             ])
 
-            print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
+            total_amount = 0
+            total_quantity = 0
+
+            for i in cart_items:
+                total_amount += i["Total Price"]
+                total_quantity += i["Quantity"]
+            
+            print(total_amount,total_quantity)
+
 
 
         #Go back to the customer menu
