@@ -207,12 +207,12 @@ def cart_menu(customer_id):
                                 "Product Name":"$_id.Product Name",
                                 "Unit Price":"$_id.Unit Price",
                                 "Quantity":1,
-                                "total":{"$multiply":["$Quantity","$_id.Unit Price"]}}
+                                "Total price":{"$multiply":["$Quantity","$_id.Unit Price"]}}
                 }
 
             ])
 
-            print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
+            print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid",numalign="center"))
 
         # Empty cart
 
@@ -232,7 +232,7 @@ def cart_menu(customer_id):
                     }
                 }
             ])
-            print(tabulate(items,headers="keys",tablefmt="fancy_grid"))
+            print(tabulate(items,headers="keys",tablefmt="fancy_grid",numalign="center"))
 
         #Checkout
         elif choice == "5":
@@ -266,16 +266,22 @@ def cart_menu(customer_id):
                     "$project":
                             {
                                 "_id":0,
-                                "Product id":"$_id.Product id",
-                                "Product Name":"$_id.Product Name",
-                                "Unit Price":"$_id.Unit Price",
                                 "Quantity":1,
                                 "total":{"$multiply":["$Quantity","$_id.Unit Price"]}}
                 }
 
             ])
 
-            print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid"))
+            total_amount = 0
+            total_quantity = 0
+            for item in cart_items:
+                total_amount += item["total"]
+                total_quantity += item["Quantity"]
+
+            order_summary = [["Total to pay","Number of items"],[total_amount,total_quantity]]
+
+            print("Order Summary\n")
+            print(tabulate(order_summary,headers="firstrow",tablefmt="presto",numalign="center"))
 
 
         #Go back to the customer menu
