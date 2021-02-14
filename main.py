@@ -4,6 +4,7 @@ from pprint import pprint
 from tabulate import tabulate
 from pymongo import MongoClient
 from bson import ObjectId
+from datetime import datetime
 
 host = MongoClient("localhost",27017)
 db = host["e-commerce"]
@@ -114,8 +115,9 @@ def customer_menu(customer_id): # Customer menu after logging in
             number_of_orders = orders.count_documents({"customer_id":customer_id})
 
             if number_of_orders > 0:
-                ids = []
                 ids_cursor = orders.find({"customer_id":customer_id},{"_id":1})
+
+                ids = []
                 for _id in ids_cursor:
                     ids.append(_id["_id"])
 
@@ -142,19 +144,20 @@ def customer_menu(customer_id): # Customer menu after logging in
                         {
                                 "$group":
                                 {
-                                    "_id":{"product_id":"$items.product_id","quantity":"$ordered_products.quantity","product_name":"$items.product_name","unit_price":"$items.unit_price"},
+                                    "_id":{"product_id":"$items.product_id","quantity":"$ordered_products.quantity","product_name":"$items.product_name","unit_price":"$items.unit_price","date":"$Date"},
                                 }   
                         },
                         {
                                 "$project":
                                         {
                                             "_id":0,
-                                            # "Order Id":"$_id.order_id",
                                             "Product Id":"$_id.product_id",
                                             "Product Name":"$_id.product_name",
                                             "Unit Price":"$_id.unit_price",
                                             "Quantity":"$_id.quantity",
-                                            "Total price":{"$multiply":["$_id.quantity","$_id.unit_price"]}}
+                                            "Total price":{"$multiply":["$_id.quantity","$_id.unit_price"]},
+                                            "Date":"$_id.date"
+                                        }
                         },
                         ])
 
@@ -355,7 +358,7 @@ def cart_menu(customer_id): # Cart menu for adding, removing producing and makin
                 # Get items from cart 
                 cart_items = list(db.customers.aggregate([
                     {
-                        "$match":{"customer_id":1}
+                        "$match":{"customer_id":customer_id}
                     },
                     {
                         "$unwind":"$cart"
@@ -377,10 +380,12 @@ def cart_menu(customer_id): # Cart menu for adding, removing producing and makin
                         }
                     }
                 ]))
-
                 if cart_items:
-                    # Insert items into order
-                    orders.insert_one({"customer_id":1,"ordered_products":cart_items})
+                    # Get current time
+                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                    # Insert items into a new order
+                    orders.insert_one({"customer_id":customer_id,"ordered_products":cart_items,"total_paid":order_summary[1][0],"Date":current_time})
 
                     # empty cart
                     customers.update_one({"customer_id":customer_id},{"$set":{"cart":[]}})
