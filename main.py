@@ -3,13 +3,13 @@ from prettytable import PrettyTable
 from pprint import pprint
 from tabulate import tabulate
 from pymongo import MongoClient
+from bson import ObjectId
 
 host = MongoClient("localhost",27017)
 db = host["e-commerce"]
 customers = db["customers"]
 products = db["products"]
 orders = db["orders"]
-
 
 main_m = '''
 Welcome to the E-commerce demo app
@@ -22,7 +22,7 @@ customer_m = '''
 Customer Menu
 
 1.Cart
-2.Orders
+2.Orders history
 3.Personal detials
 4.Delete account
 
@@ -52,11 +52,11 @@ search_menu = '''\nPlease choose one of the following options:\n
 (b) to go back"
 '''
 
-def get_customers(documents):
+def get_customers(documents): # Get availabe customers from the database
     for document in documents.find():
         print(int(document["customer_id"]), document["first_name"].title(),document["last_name"].title())
 
-def get_order_summary(items):
+def get_order_summary(items): # Calculate the total amount and the over all quantity made in an order
     total_amount = 0
     total_quantity = 0
 
@@ -67,16 +67,8 @@ def get_order_summary(items):
     order_summary = [["Total to pay","Number of items"],[total_amount,total_quantity]]
     return order_summary
 
-def insert_order_items(customer_id, items):
 
-    for item in items:
-        orders.insert_one(item)
-
-
-
-
-#Interface
-def main():
+def main(): # Main menu
     while True:
         print(main_m)
         get_customers(customers)
@@ -102,11 +94,14 @@ def main():
         else:
             print("You selected an invalid option, please select a valid option")
 
-def customer_menu(customer_id):
+def customer_menu(customer_id): # Customer menu after logging in
     customer = customers.find_one({"customer_id":customer_id})
     while True:
+        # Display a message of the logged in customer
         print("\nYou are logged in as " + customer['first_name'].title()
         ,customer['last_name'].title())
+
+        # Display menu
         print(customer_m)
 
         # Cart menu
@@ -116,7 +111,57 @@ def customer_menu(customer_id):
 
         # Show Orders
         elif choice == "2":
-            pass
+            number_of_orders = orders.count_documents({"customer_id":customer_id})
+
+            if number_of_orders > 0:
+                ids = []
+                ids_cursor = orders.find({"customer_id":customer_id},{"_id":1})
+                for _id in ids_cursor:
+                    ids.append(_id["_id"])
+
+                for _id in ids:
+                    order_history = orders.aggregate([
+                        {
+                            "$match":{"_id":_id}
+                        },
+                        {
+                            "$unwind":"$ordered_products"
+                        },
+                        {
+                            "$lookup":
+                                {
+                                    "from":"products",
+                                    "localField":"ordered_products.product_id",
+                                    "foreignField":"product_id",
+                                    "as": "items"
+                                }
+                        },
+                        {
+                                "$unwind":"$items"
+                        },
+                        {
+                                "$group":
+                                {
+                                    "_id":{"product_id":"$items.product_id","quantity":"$ordered_products.quantity","product_name":"$items.product_name","unit_price":"$items.unit_price"},
+                                }   
+                        },
+                        {
+                                "$project":
+                                        {
+                                            "_id":0,
+                                            # "Order Id":"$_id.order_id",
+                                            "Product Id":"$_id.product_id",
+                                            "Product Name":"$_id.product_name",
+                                            "Unit Price":"$_id.unit_price",
+                                            "Quantity":"$_id.quantity",
+                                            "Total price":{"$multiply":["$_id.quantity","$_id.unit_price"]}}
+                        },
+                        ])
+
+                    print(f"Order number:\t{_id}\n")
+
+                    print(tabulate(order_history,headers="keys",tablefmt="grid",numalign="center"),"\n")
+                    
 
         # Show personal details
         elif choice == "3":
@@ -136,9 +181,11 @@ def customer_menu(customer_id):
             print("You selected an invalid option, please select a valid option")
 
 
-def cart_menu(customer_id):
+def cart_menu(customer_id): # Cart menu for adding, removing producing and making purchases.
     while True:
+        # Display menu
         print(cart_m)
+
         choice = input()
 
         #Add product to cart
@@ -148,7 +195,9 @@ def cart_menu(customer_id):
             #Check stock
             counter = products.count_documents({"product_id":int(product_id),"units_in_stock":{"$gt":0}})
 
+            # If product is in stock
             if counter >= 1:
+
                 # Update stock
                 products.update_one({"product_id":int(product_id),"units_in_stock":{"$gt":0}},
                 {
@@ -170,7 +219,8 @@ def cart_menu(customer_id):
 
             # Check product in cart
             counter = customers.count_documents({"customer_id":int(customer_id),"cart.product_id":int(product_id)})
-
+            
+            # If there are products in cart
             if counter >= 1:
                 
                 # Update Cart
@@ -231,8 +281,6 @@ def cart_menu(customer_id):
 
             print(tabulate(cart_items,headers="keys",tablefmt="fancy_grid",numalign="center"))
 
-        # Empty cart
-
         #Show products in store    
         elif choice == "4":
             print("\nAvailable products:")
@@ -253,6 +301,7 @@ def cart_menu(customer_id):
 
         #Checkout
         elif choice == "5":
+            # Retrive products in cart to make an order summary
             cart_items = db.customers.aggregate([
                 {
                     "$match":{"customer_id":customer_id}
@@ -290,6 +339,7 @@ def cart_menu(customer_id):
                                 "Total price":{"$multiply":["$Quantity","$_id.Unit Price"]}}
                 },
             ])
+
 
             order_summary = get_order_summary(cart_items)
 
@@ -330,7 +380,7 @@ def cart_menu(customer_id):
 
                 if cart_items:
                     # Insert items into order
-                    orders.insert_one({"customer_id":1,"products":cart_items})
+                    orders.insert_one({"customer_id":1,"ordered_products":cart_items})
 
                     # empty cart
                     customers.update_one({"customer_id":customer_id},{"$set":{"cart":[]}})
