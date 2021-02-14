@@ -56,6 +56,23 @@ def get_customers(documents):
     for document in documents.find():
         print(int(document["customer_id"]), document["first_name"].title(),document["last_name"].title())
 
+def get_order_summary(items):
+    total_amount = 0
+    total_quantity = 0
+
+    for item in items:
+        total_amount += item["Total price"]
+        total_quantity += item["Quantity"]
+
+    order_summary = [["Total to pay","Number of items"],[total_amount,total_quantity]]
+    return order_summary
+
+def insert_order_items(customer_id, items):
+
+    for item in items:
+        orders.insert_one(item)
+
+
 
 
 #Interface
@@ -266,23 +283,67 @@ def cart_menu(customer_id):
                     "$project":
                             {
                                 "_id":0,
+                                "Product id":"$_id.Product id",
+                                "Product Name":"$_id.Product Name",
+                                "Unit Price":"$_id.Unit Price",
                                 "Quantity":1,
-                                "total":{"$multiply":["$Quantity","$_id.Unit Price"]}}
-                }
-
+                                "Total price":{"$multiply":["$Quantity","$_id.Unit Price"]}}
+                },
             ])
 
-            total_amount = 0
-            total_quantity = 0
-            for item in cart_items:
-                total_amount += item["total"]
-                total_quantity += item["Quantity"]
+            order_summary = get_order_summary(cart_items)
 
-            order_summary = [["Total to pay","Number of items"],[total_amount,total_quantity]]
-
-            print("Order Summary\n")
+            print("\nOrder Summary\n")
             print(tabulate(order_summary,headers="firstrow",tablefmt="presto",numalign="center"))
 
+
+
+            confirmation = input("\nAre you sure you want to make this order?(y,n)\t")
+           
+            if confirmation.lower() == "y":
+
+                # Get items from cart 
+                cart_items = list(db.customers.aggregate([
+                    {
+                        "$match":{"customer_id":1}
+                    },
+                    {
+                        "$unwind":"$cart"
+                    },
+                    {
+                        "$group":
+                        {
+                            "_id":{"product_id":"$cart.product_id"},
+                            "quantity":{"$sum":1}
+                        }
+                    },
+                    {
+                        "$project":
+                        {
+                            "_id":0,
+                            "quantity":1,
+                            "product_id":"$_id.product_id",
+
+                        }
+                    }
+                ]))
+
+                if cart_items:
+                    # Insert items into order
+                    orders.insert_one({"customer_id":1,"products":cart_items})
+
+                    # empty cart
+                    customers.update_one({"customer_id":customer_id},{"$set":{"cart":[]}})
+
+                else:
+                    print("\nPlease add products to your cart to make a purchase\n")
+
+
+            elif confirmation.lower() == "n":
+                pass
+
+            else:
+                print("\nYou selected invalid option!")
 
         #Go back to the customer menu
         elif choice.lower() == "b":

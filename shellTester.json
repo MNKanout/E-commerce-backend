@@ -89,3 +89,62 @@ db.customers.aggregate([
         $project: {notEmpty:{$anyElementTrue:["$cart"]}}
     }
     ]);
+
+
+    db.customers.find({customer_id:1},{"_id":0,"cart":1}).pretty()
+
+
+db.customers.aggregate([
+    {
+        $match:{customer_id:1}
+    },
+    {
+        $unwind:"$cart"
+    },
+    {
+        $group:
+        {
+            _id:{"product_id":"$cart.product_id"},
+            quantity:{$sum:1}
+        }
+    },
+    {
+        $project:
+        {
+            _id:0,
+            quantity:1,
+            product_id:"$_id.product_id",
+
+        }
+    }
+])
+
+
+
+db.orders.insert({
+            order_id:1,
+            customer_id:1,
+            products:[]
+
+})
+
+
+{
+    $unwind:"$cart"
+},
+{
+    $group:
+    {
+        _id:{"product_id":"$cart.product_id"},
+        quantity:{$sum:1}
+    }
+},
+{
+    $project:
+    {
+        _id:0,
+        quantity:1,
+        product_id:"$_id.product_id",
+
+    }
+}
